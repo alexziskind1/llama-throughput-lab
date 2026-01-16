@@ -26,6 +26,16 @@ def check_dependencies():
         sys.exit(1)
 
 
+def warn_if_missing_nginx():
+    if shutil.which("nginx"):
+        return
+    show_msg(
+        "Missing nginx",
+        "nginx was not found in PATH.\n"
+        "Round-robin tests/sweeps will fail until nginx is installed.",
+    )
+
+
 def run_dialog(args):
     with tempfile.NamedTemporaryFile(mode="w+") as tf:
         cmd = ["dialog"] + args
@@ -416,6 +426,7 @@ def main_menu():
 if __name__ == "__main__":
     check_dependencies()
     try:
+        warn_if_missing_nginx()
         main_menu()
     except KeyboardInterrupt:
         subprocess.run(["clear"])

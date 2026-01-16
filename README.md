@@ -58,17 +58,17 @@ benchmark runs that explore parameter ranges and report the best throughput.
 Tests:
 - Single request
 - Concurrent requests
-- Round-robin (nginx + multiple servers)
+- Round-robin (nginx + multiple servers, requires `nginx`)
 
 Sweeps:
 - Threads (--threads/--threads-http)
-- Round-robin (max_tokens x concurrency)
-- Full (instances x parallel x concurrency)
+- Round-robin (max_tokens x concurrency, requires `nginx`)
+- Full (instances x parallel x concurrency, requires `nginx`)
 
 ## Requirements
 
 - llama.cpp built with `llama-server` available.
-- For round-robin tests/sweeps: `nginx` installed (`brew install nginx` on macOS).
+- `nginx` installed for round-robin tests/sweeps (`brew install nginx` on macOS).
 - Model in GGUF format.
 
 You must provide a GGUF model path via the launcher or `LLAMA_MODEL_PATH`.
