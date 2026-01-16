@@ -25,6 +25,7 @@ NGINX_BIN="${NGINX_BIN:-nginx}"
 NGINX_PORT="${LLAMA_NGINX_PORT:-8088}"
 
 RUN_DIR="${RUN_DIR:-/tmp/llama-rr}"
+ENV_STATE_FILE="$RUN_DIR/llama-rr.env"
 
 start() {
   mkdir -p "$RUN_DIR"
@@ -82,17 +83,51 @@ start() {
   "$NGINX_BIN" -c "$conf" -p "$RUN_DIR" -g "daemon off;" >"$RUN_DIR/nginx.stdout" 2>&1 &
   echo $! > "$RUN_DIR/nginx.shell.pid"
 
+  cat > "$ENV_STATE_FILE" <<EOF
+HOST=$HOST
+INSTANCES=$INSTANCES
+BASE_PORT=$BASE_PORT
+NGINX_PORT=$NGINX_PORT
+EOF
+
   echo "Started ${INSTANCES} llama-server instances and nginx on http://${HOST}:${NGINX_PORT}"
 }
 
 stop() {
+  if [ -f "$ENV_STATE_FILE" ]; then
+    # shellcheck source=/dev/null
+    . "$ENV_STATE_FILE"
+  fi
+
   if [ -f "$RUN_DIR/nginx.pid" ]; then
     kill "$(cat "$RUN_DIR/nginx.pid")" 2>/dev/null || true
+  fi
+  if [ -f "$RUN_DIR/nginx.shell.pid" ]; then
+    kill "$(cat "$RUN_DIR/nginx.shell.pid")" 2>/dev/null || true
   fi
   for pidfile in "$RUN_DIR"/llama-*.pid; do
     [ -f "$pidfile" ] || continue
     kill "$(cat "$pidfile")" 2>/dev/null || true
   done
+
+  if command -v lsof >/dev/null 2>&1; then
+    i=0
+    while [ "$i" -lt "${INSTANCES:-0}" ]; do
+      port=$((BASE_PORT + i))
+      pid=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)
+      if [ -n "$pid" ]; then
+        name=$(ps -p "$pid" -o comm= 2>/dev/null || true)
+        case "$name" in
+          *llama-server*|*llama-*)
+            kill "$pid" 2>/dev/null || true
+            ;;
+        esac
+      fi
+      i=$((i + 1))
+    done
+  fi
+
+  rm -f "$RUN_DIR"/nginx.pid "$RUN_DIR"/nginx.shell.pid "$RUN_DIR"/llama-*.pid "$ENV_STATE_FILE" 2>/dev/null || true
   echo "Stopped."
 }
 

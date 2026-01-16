@@ -201,6 +201,51 @@ def main():
 
     print(f"results_file={results_path}")
 
+    total_runs = len(batch_list) * len(ubatch_list) * len(max_tokens_list) * len(
+        concurrency_list
+    )
+    completed = 0
+    sweep_start = time.time()
+
+    def record_row(
+        batch_label,
+        ubatch_label,
+        max_tokens,
+        concurrency,
+        throughput,
+        total_tokens,
+        elapsed,
+        errors,
+    ):
+        nonlocal completed
+        writer.writerow(
+            [
+                batch_label,
+                ubatch_label,
+                max_tokens,
+                concurrency,
+                throughput,
+                total_tokens,
+                elapsed,
+                errors,
+            ]
+        )
+        results_file.flush()
+        completed += 1
+        if total_runs:
+            elapsed_s = time.time() - sweep_start
+            print(
+                "progress "
+                f"{completed}/{total_runs} "
+                f"({completed / total_runs * 100:.1f}%) "
+                f"elapsed={elapsed_s:.1f}s "
+                f"last=batch={batch_label} "
+                f"ubatch={ubatch_label} "
+                f"max_tokens={max_tokens} "
+                f"concurrency={concurrency}",
+                file=sys.stderr,
+            )
+
     best = {
         "throughput": 0.0,
         "tokens": None,
@@ -297,20 +342,16 @@ def main():
                                             f"{result['last_error']}",
                                             file=sys.stderr,
                                         )
-
-                                    writer.writerow(
-                                        [
-                                            batch_label,
-                                            ubatch_label,
-                                            max_tokens,
-                                            concurrency,
-                                            f"{result['throughput']:.1f}",
-                                            str(result["total_tokens"]),
-                                            f"{result['elapsed']:.2f}",
-                                            str(result["errors"]),
-                                        ]
+                                    record_row(
+                                        batch_label,
+                                        ubatch_label,
+                                        max_tokens,
+                                        concurrency,
+                                        f"{result['throughput']:.1f}",
+                                        str(result["total_tokens"]),
+                                        f"{result['elapsed']:.2f}",
+                                        str(result["errors"]),
                                     )
-                                    results_file.flush()
 
                                     if result["throughput"] > best["throughput"]:
                                         best = {
@@ -341,19 +382,16 @@ def main():
                                 total_requests = max(
                                     1, concurrency * requests_multiplier
                                 )
-                            writer.writerow(
-                                [
-                                    batch_label,
-                                    ubatch_label,
-                                    max_tokens,
-                                    concurrency,
-                                    "0.0",
-                                    "0",
-                                    "0.00",
-                                    str(total_requests),
-                                ]
+                            record_row(
+                                batch_label,
+                                ubatch_label,
+                                max_tokens,
+                                concurrency,
+                                "0.0",
+                                "0",
+                                "0.00",
+                                str(total_requests),
                             )
-                            results_file.flush()
                     continue
     finally:
         results_file.close()

@@ -266,6 +266,11 @@ class AppState:
         self.server_bin = auto_detect_server_bin()
         self.env_overrides = ""
         self.test_key = "1"
+        self.rr_instances = int(os.environ.get("LLAMA_SERVER_INSTANCES", "2"))
+        self.rr_parallel = int(os.environ.get("LLAMA_PARALLEL", "16"))
+        self.rr_base_port = int(os.environ.get("LLAMA_SERVER_BASE_PORT", "9000"))
+        self.rr_nginx_port = int(os.environ.get("LLAMA_NGINX_PORT", "8088"))
+        self.rr_host = os.environ.get("LLAMA_SERVER_HOST", "127.0.0.1")
 
     @property
     def test_label(self):
@@ -369,6 +374,179 @@ def run_selected(state):
     input("\nRun complete. Press Enter to return to menu...")
 
 
+def run_round_robin(state, action):
+    script_path = SCRIPT_DIR / "start_llama_rr.sh"
+    if not script_path.exists():
+        show_msg("Error", "start_llama_rr.sh not found.")
+        return
+
+    overrides = parse_env_overrides(state.env_overrides)
+    if state.model_path and "LLAMA_MODEL_PATH" not in overrides:
+        overrides["LLAMA_MODEL_PATH"] = state.model_path
+    if state.server_bin and "LLAMA_SERVER_BIN" not in overrides:
+        overrides["LLAMA_SERVER_BIN"] = state.server_bin
+    overrides.setdefault("LLAMA_SERVER_INSTANCES", str(state.rr_instances))
+    overrides.setdefault("LLAMA_PARALLEL", str(state.rr_parallel))
+    overrides.setdefault("LLAMA_SERVER_BASE_PORT", str(state.rr_base_port))
+    overrides.setdefault("LLAMA_NGINX_PORT", str(state.rr_nginx_port))
+    overrides.setdefault("LLAMA_SERVER_HOST", state.rr_host)
+
+    env = os.environ.copy()
+    env.update(overrides)
+
+    subprocess.run(["clear"])
+    print("=== Round-robin Servers ===")
+    print(f"Action: {action}")
+    if state.model_path:
+        print(f"Model:  {state.model_path}")
+    if state.env_overrides:
+        print(f"Env:    {state.env_overrides}")
+    print("--------------------------------")
+    cmd = [str(script_path), action]
+    print(f"CMD: {' '.join(cmd)}")
+    print("")
+
+    subprocess.run(cmd, cwd=str(SCRIPT_DIR), env=env)
+    input("\nDone. Press Enter to return to menu...")
+
+
+def edit_rr_instances(state):
+    current = str(state.rr_instances)
+    selection, code = run_dialog(
+        [
+            "--title",
+            "Round-robin Instances",
+            "--inputbox",
+            "Number of llama-server instances to start:",
+            "10",
+            "60",
+            current,
+        ]
+    )
+    if code == 0 and selection.strip().isdigit():
+        state.rr_instances = int(selection.strip())
+
+
+def edit_rr_parallel(state):
+    current = str(state.rr_parallel)
+    selection, code = run_dialog(
+        [
+            "--title",
+            "Round-robin Parallel",
+            "--inputbox",
+            "Value for --parallel:",
+            "10",
+            "60",
+            current,
+        ]
+    )
+    if code == 0 and selection.strip().isdigit():
+        state.rr_parallel = int(selection.strip())
+
+
+def edit_rr_base_port(state):
+    current = str(state.rr_base_port)
+    selection, code = run_dialog(
+        [
+            "--title",
+            "Round-robin Base Port",
+            "--inputbox",
+            "Base port for the first llama-server instance:",
+            "10",
+            "60",
+            current,
+        ]
+    )
+    if code == 0 and selection.strip().isdigit():
+        state.rr_base_port = int(selection.strip())
+
+
+def edit_rr_nginx_port(state):
+    current = str(state.rr_nginx_port)
+    selection, code = run_dialog(
+        [
+            "--title",
+            "Round-robin Nginx Port",
+            "--inputbox",
+            "Port for nginx to listen on:",
+            "10",
+            "60",
+            current,
+        ]
+    )
+    if code == 0 and selection.strip().isdigit():
+        state.rr_nginx_port = int(selection.strip())
+
+
+def edit_rr_host(state):
+    current = state.rr_host
+    selection, code = run_dialog(
+        [
+            "--title",
+            "Round-robin Host",
+            "--inputbox",
+            "Host address for llama-server and nginx:",
+            "10",
+            "60",
+            current,
+        ]
+    )
+    if code == 0 and selection.strip():
+        state.rr_host = selection.strip()
+
+
+def round_robin_menu(state):
+    while True:
+        menu = [
+            "--clear",
+            "--backtitle",
+            "Llama.cpp Local Test Launcher",
+            "--title",
+            "Configure and Run Round Robin",
+            "--menu",
+            "Set parameters and start/stop servers:",
+            "20",
+            "70",
+            "9",
+            "1",
+            f"Instances: {state.rr_instances}",
+            "2",
+            f"Parallel: {state.rr_parallel}",
+            "3",
+            f"Base Port: {state.rr_base_port}",
+            "4",
+            f"Nginx Port: {state.rr_nginx_port}",
+            "5",
+            f"Host: {state.rr_host}",
+            "6",
+            "Start round-robin servers",
+            "7",
+            "Stop round-robin servers",
+            "8",
+            "Back",
+        ]
+
+        choice, code = run_dialog(menu)
+        if code != 0:
+            break
+        if choice == "1":
+            edit_rr_instances(state)
+        elif choice == "2":
+            edit_rr_parallel(state)
+        elif choice == "3":
+            edit_rr_base_port(state)
+        elif choice == "4":
+            edit_rr_nginx_port(state)
+        elif choice == "5":
+            edit_rr_host(state)
+        elif choice == "6":
+            run_round_robin(state, "start")
+        elif choice == "7":
+            run_round_robin(state, "stop")
+        elif choice == "8":
+            break
+
+
 def main_menu():
     state = AppState()
 
@@ -387,7 +565,7 @@ def main_menu():
             "Select an option to configure or run:",
             "20",
             "70",
-            "8",
+            "9",
             "1",
             f"Test:   {state.test_label}",
             "2",
@@ -399,6 +577,8 @@ def main_menu():
             "5",
             "RUN SELECTED TEST",
             "6",
+            "CONFIGURE AND RUN ROUND ROBIN",
+            "7",
             "Exit",
         ]
 
@@ -417,6 +597,8 @@ def main_menu():
         elif choice == "5":
             run_selected(state)
         elif choice == "6":
+            round_robin_menu(state)
+        elif choice == "7":
             break
 
     subprocess.run(["clear"])

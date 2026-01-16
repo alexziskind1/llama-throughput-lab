@@ -65,6 +65,13 @@ Sweeps:
 - Round-robin (max_tokens x concurrency, requires `nginx`)
 - Full (instances x parallel x concurrency, requires `nginx`)
 
+Utilities:
+- Configure and run round robin (submenu to set instances/ports/parallel, then start/stop)
+
+These use the same env overrides (e.g., `LLAMA_SERVER_INSTANCES`, `LLAMA_PARALLEL`,
+`LLAMA_SERVER_BASE_PORT`, `LLAMA_NGINX_PORT`, `LLAMA_SERVER_HOST`, `LLAMA_MODEL_PATH`,
+`LLAMA_SERVER_BIN`).
+
 ## Requirements
 
 - llama.cpp built with `llama-server` available.
@@ -180,3 +187,4 @@ Sweep results are written incrementally to:
 results/full_sweep/full_sweep_<timestamp>.csv
 results/round_robin_sweep/round_robin_sweep_<timestamp>.csv
 ```
+Progress updates are printed to stderr during sweeps (completed/total and elapsed time).
