@@ -4,9 +4,10 @@ This repo provides a dialog-based launcher to run llama.cpp throughput tests and
 
 ## Quick Start
 
-1) Create a virtual environment (optional):
+1) Create and activate a virtual environment (optional):
 ```bash
 python3 -m venv .venv
+source .venv/bin/activate
 ```
 
 2) Install `dialog`:
