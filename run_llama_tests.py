@@ -388,8 +388,8 @@ def tokens_menu(state):
             "--title",
             "Tokens and sweep",
             "--menu",
-            "Single/sweep tokens and concurrency list for sweeps.",
-            "16",
+            "Single/sweep tokens, concurrency list.",
+            "18",
             "70",
             "4",
             "1",
@@ -447,6 +447,8 @@ def run_selected(state):
         overrides["LLAMA_MAX_TOKENS_LIST"] = state.max_tokens_list
     if state.test_key in ("5", "6") and "LLAMA_CONCURRENCY_LIST" not in overrides:
         overrides["LLAMA_CONCURRENCY_LIST"] = state.concurrency_list
+    if state.test_key in ("1", "2", "3", "4", "5") and "LLAMA_PARALLEL" not in overrides:
+        overrides["LLAMA_PARALLEL"] = str(state.rr_parallel)
 
     env = os.environ.copy()
     env.update(overrides)
@@ -459,6 +461,14 @@ def run_selected(state):
     print(f"Test:  {label}")
     if state.model_path:
         print(f"Model: {state.model_path}")
+    print("Parameters:")
+    print(f"  Client token size (n_predict): {overrides.get('LLAMA_N_PREDICT', str(state.n_predict))}")
+    ctx_effective = overrides.get("LLAMA_CTXSIZE_PER_SESSION") or str(state.n_predict)
+    ctx_note = " (from n_predict)" if "LLAMA_CTXSIZE_PER_SESSION" not in overrides else ""
+    print(f"  Context per session (--ctx-size): {ctx_effective}{ctx_note}")
+    print(f"  Sweep tokens:                  {overrides.get('LLAMA_MAX_TOKENS_LIST', state.max_tokens_list)}")
+    print(f"  List of concurrent tests:     {overrides.get('LLAMA_CONCURRENCY_LIST', state.concurrency_list)}")
+    print(f"  Parallel (server --parallel): {overrides.get('LLAMA_PARALLEL', str(state.rr_parallel))}")
     if state.env_overrides:
         print(f"Env:   {state.env_overrides}")
     print("--------------------------------")
@@ -484,6 +494,7 @@ def run_round_robin(state, action):
         overrides["LLAMA_SERVER_BIN"] = state.server_bin
     overrides.setdefault("LLAMA_SERVER_INSTANCES", str(state.rr_instances))
     overrides.setdefault("LLAMA_PARALLEL", str(state.rr_parallel))
+    overrides.setdefault("LLAMA_N_PREDICT", str(state.n_predict))
     overrides.setdefault("LLAMA_SERVER_BASE_PORT", str(state.rr_base_port))
     overrides.setdefault("LLAMA_NGINX_PORT", str(state.rr_nginx_port))
     overrides.setdefault("LLAMA_SERVER_HOST", state.rr_host)

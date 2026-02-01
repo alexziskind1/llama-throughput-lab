@@ -204,9 +204,10 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
     ] + extra_args
 
     # Always set --ctx-size so we don't allocate too much memory.
-    # ctx_size = ctxsizePerSession * parallel (per-session context, server total context).
+    # ctx_size = ctxsize_per_session * parallel; use n_predict when CTXSIZE_PER_SESSION not set.
     ctxsize_per_session = int(
-        os.environ.get("LLAMA_CTXSIZE_PER_SESSION", "2048")
+        os.environ.get("LLAMA_CTXSIZE_PER_SESSION")
+        or os.environ.get("LLAMA_N_PREDICT", "2048")
     )
     parallel = int(os.environ.get("LLAMA_PARALLEL", "1"))
     ctx_size = ctxsize_per_session * parallel
