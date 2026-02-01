@@ -117,7 +117,7 @@ You can supply overrides in the launcher (space-separated `KEY=VALUE` pairs), or
 ### Server Behavior
 
 - `LLAMA_SERVER_ARGS`: extra args passed to `llama-server` (e.g. `--parallel 64`).
-- `LLAMA_CTXSIZE_PER_SESSION`: context size per session (tokens). If set, the server is started with `--ctx-size (ctxsizePerSession * parallel)` and `--parallel` so that each of the `parallel` slots gets this many tokens. Formula: `ctx_size = LLAMA_CTXSIZE_PER_SESSION * LLAMA_PARALLEL`.
+- `LLAMA_CTXSIZE_PER_SESSION`: context size per session (tokens). If set (e.g. via env overrides), the server is started with `--ctx-size (ctxsizePerSession * parallel)`. If not set, context is derived from `LLAMA_N_PREDICT`. Formula: `ctx_size = (LLAMA_CTXSIZE_PER_SESSION or LLAMA_N_PREDICT) * LLAMA_PARALLEL`. The dialog UI does not expose this; it always uses the single-test token value for context.
 - `LLAMA_SERVER_HOST`: host for llama-server (default `127.0.0.1`).
 - `LLAMA_SERVER_PORT`: fixed port for single-server tests (optional).
 - `LLAMA_SERVER_INSTANCES`: number of servers for round-robin tests/sweeps.
