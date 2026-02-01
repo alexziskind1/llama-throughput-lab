@@ -3,8 +3,12 @@ import os
 import shlex
 import sys
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+
+# Suppress ResourceWarning for unclosed sockets in threaded urllib use (Python 3.12)
+warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed .*socket")
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -302,6 +306,7 @@ def main():
                             "default" if ubatch_size is None else str(ubatch_size)
                         )
                         try:
+                            os.environ["LLAMA_PARALLEL"] = str(parallel)
                             with start_llama_servers(
                                 instances,
                                 base_port=base_port,

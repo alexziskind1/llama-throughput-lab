@@ -20,6 +20,8 @@ HOST="${LLAMA_SERVER_HOST:-127.0.0.1}"
 INSTANCES="${LLAMA_SERVER_INSTANCES:-2}"
 BASE_PORT="${LLAMA_SERVER_BASE_PORT:-9000}"
 PARALLEL="${LLAMA_PARALLEL:-16}"
+# Per-session context size; total server ctx_size = CTXSIZE_PER_SESSION * PARALLEL (always set to cap memory)
+CTXSIZE_PER_SESSION="${LLAMA_CTXSIZE_PER_SESSION:-2048}"
 
 NGINX_BIN="${NGINX_BIN:-nginx}"
 NGINX_PORT="${LLAMA_NGINX_PORT:-8088}"
@@ -47,11 +49,14 @@ start() {
     exit 1
   fi
 
+  CTX_SIZE=$((CTXSIZE_PER_SESSION * PARALLEL))
+
   i=0
   while [ "$i" -lt "$INSTANCES" ]; do
     port=$((BASE_PORT + i))
     log="$RUN_DIR/llama-${port}.log"
-    "$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH" --parallel "$PARALLEL" >"$log" 2>&1 &
+    # shellcheck disable=SC2086
+    "$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH" --parallel "$PARALLEL" --ctx-size "$CTX_SIZE" >"$log" 2>&1 &
     echo $! > "$RUN_DIR/llama-${port}.pid"
     i=$((i + 1))
   done

@@ -266,6 +266,11 @@ class AppState:
         self.server_bin = auto_detect_server_bin()
         self.env_overrides = ""
         self.test_key = "1"
+        self.n_predict = int(os.environ.get("LLAMA_N_PREDICT", "128"))
+        self.max_tokens_list = os.environ.get("LLAMA_MAX_TOKENS_LIST", "128,256,512,1024")
+        self.concurrency_list = os.environ.get(
+            "LLAMA_CONCURRENCY_LIST", "1,2,4,8,16,32,64,128,256,512,1024"
+        )
         self.rr_instances = int(os.environ.get("LLAMA_SERVER_INSTANCES", "2"))
         self.rr_parallel = int(os.environ.get("LLAMA_PARALLEL", "16"))
         self.rr_base_port = int(os.environ.get("LLAMA_SERVER_BASE_PORT", "9000"))
@@ -323,6 +328,92 @@ def edit_env_overrides(state):
         state.env_overrides = selection.strip()
 
 
+def edit_n_predict(state):
+    current = str(state.n_predict)
+    selection, code = run_dialog(
+        [
+            "--title",
+            "Tokens (single test)",
+            "--inputbox",
+            "Tokens to generate per request (single and non-sweep tests):",
+            "10",
+            "60",
+            current,
+        ]
+    )
+    if code == 0 and selection.strip().isdigit():
+        state.n_predict = int(selection.strip())
+
+
+def edit_max_tokens_list(state):
+    current = state.max_tokens_list or "128,256,512,1024"
+    selection, code = run_dialog(
+        [
+            "--title",
+            "Tokens (sweep tests)",
+            "--inputbox",
+            "Comma-separated token counts for sweep (e.g. 128,256,512,1024):",
+            "10",
+            "60",
+            current,
+        ]
+    )
+    if code == 0 and selection.strip():
+        state.max_tokens_list = selection.strip()
+
+
+def edit_concurrency_list(state):
+    current = state.concurrency_list or "1,2,4,8,16,32,64,128,256,512,1024"
+    selection, code = run_dialog(
+        [
+            "--title",
+            "List of concurrent tests (sweeps)",
+            "--inputbox",
+            "Comma-separated concurrencies for sweep (e.g. 1,4,8,16,32,64):",
+            "10",
+            "60",
+            current,
+        ]
+    )
+    if code == 0 and selection.strip():
+        state.concurrency_list = selection.strip()
+
+
+def tokens_menu(state):
+    while True:
+        menu = [
+            "--clear",
+            "--backtitle",
+            "Llama.cpp Local Test Launcher",
+            "--title",
+            "Tokens and sweep",
+            "--menu",
+            "Single/sweep tokens and concurrency list for sweeps.",
+            "16",
+            "70",
+            "4",
+            "1",
+            f"Single test: {state.n_predict}",
+            "2",
+            f"Sweep tokens: {state.max_tokens_list}",
+            "3",
+            f"List of concurrent tests: {state.concurrency_list}",
+            "4",
+            "Back",
+        ]
+        choice, code = run_dialog(menu)
+        if code != 0:
+            break
+        if choice == "1":
+            edit_n_predict(state)
+        elif choice == "2":
+            edit_max_tokens_list(state)
+        elif choice == "3":
+            edit_concurrency_list(state)
+        elif choice == "4":
+            break
+
+
 def edit_server_bin(state):
     current = state.server_bin or ""
     selection, code = run_dialog(
@@ -350,6 +441,12 @@ def run_selected(state):
         overrides["LLAMA_MODEL_PATH"] = state.model_path
     if state.server_bin and "LLAMA_SERVER_BIN" not in overrides:
         overrides["LLAMA_SERVER_BIN"] = state.server_bin
+    if "LLAMA_N_PREDICT" not in overrides:
+        overrides["LLAMA_N_PREDICT"] = str(state.n_predict)
+    if state.test_key == "5" and "LLAMA_MAX_TOKENS_LIST" not in overrides:
+        overrides["LLAMA_MAX_TOKENS_LIST"] = state.max_tokens_list
+    if state.test_key in ("5", "6") and "LLAMA_CONCURRENCY_LIST" not in overrides:
+        overrides["LLAMA_CONCURRENCY_LIST"] = state.concurrency_list
 
     env = os.environ.copy()
     env.update(overrides)
@@ -555,6 +652,7 @@ def main_menu():
         server_display = Path(state.server_bin).name if state.server_bin else "(Auto)"
         env_display = state.env_overrides if state.env_overrides else "(None)"
 
+        tokens_display = f"{state.n_predict} / {state.max_tokens_list}"
         menu = [
             "--clear",
             "--backtitle",
@@ -565,7 +663,7 @@ def main_menu():
             "Select an option to configure or run:",
             "20",
             "70",
-            "9",
+            "10",
             "1",
             f"Test:   {state.test_label}",
             "2",
@@ -573,12 +671,14 @@ def main_menu():
             "3",
             f"Server: {server_display}",
             "4",
-            f"Env:    {env_display}",
+            f"Tokens: {tokens_display}",
             "5",
-            "RUN SELECTED TEST",
+            f"Env:    {env_display}",
             "6",
-            "CONFIGURE AND RUN ROUND ROBIN",
+            "RUN SELECTED TEST",
             "7",
+            "CONFIGURE AND RUN ROUND ROBIN",
+            "8",
             "Exit",
         ]
 
@@ -593,12 +693,14 @@ def main_menu():
         elif choice == "3":
             edit_server_bin(state)
         elif choice == "4":
-            edit_env_overrides(state)
+            tokens_menu(state)
         elif choice == "5":
-            run_selected(state)
+            edit_env_overrides(state)
         elif choice == "6":
-            round_robin_menu(state)
+            run_selected(state)
         elif choice == "7":
+            round_robin_menu(state)
+        elif choice == "8":
             break
 
     subprocess.run(["clear"])

@@ -83,7 +83,9 @@ def _pick_port(allow_env_port=True):
         return sock.getsockname()[1]
 
 
-def _wait_for_server(host, port, timeout_s=90):
+def _wait_for_server(host, port, timeout_s=None):
+    if timeout_s is None:
+        timeout_s = int(os.environ.get("LLAMA_SERVER_BIND_TIMEOUT", "180"))
     deadline = time.time() + timeout_s
     last_error = None
     health_url = f"http://{host}:{port}/health"
@@ -93,6 +95,8 @@ def _wait_for_server(host, port, timeout_s=90):
         try:
             with urllib.request.urlopen(health_url, timeout=2) as resp:
                 if resp.status == 200:
+                    resp.read()
+                    resp.close()
                     return
         except urllib.error.HTTPError as exc:
             if exc.code in {200, 404}:
@@ -104,6 +108,8 @@ def _wait_for_server(host, port, timeout_s=90):
         try:
             with urllib.request.urlopen(models_url, timeout=2) as resp:
                 if resp.status == 200:
+                    resp.read()
+                    resp.close()
                     return
         except urllib.error.HTTPError as exc:
             if exc.code in {200, 404}:
@@ -114,7 +120,11 @@ def _wait_for_server(host, port, timeout_s=90):
 
         time.sleep(0.5)
 
-    raise RuntimeError(f"Server did not become ready: {last_error}")
+    raise RuntimeError(
+        f"Server did not become ready at {host}:{port} within {timeout_s}s: {last_error}. "
+        "Check that the port is free (e.g. stop any round-robin servers) and that the model "
+        "loads in time (try increasing LLAMA_SERVER_BIND_TIMEOUT or LLAMA_READY_TIMEOUT)."
+    )
 
 
 def _wait_for_completion_ready(host, port, timeout_s=120):
@@ -139,12 +149,15 @@ def _wait_for_completion_ready(host, port, timeout_s=120):
         try:
             with urllib.request.urlopen(request, timeout=5) as resp:
                 if resp.status == 200:
+                    resp.read()
+                    resp.close()
                     return
         except urllib.error.HTTPError as exc:
             if exc.code == 503:
                 time.sleep(0.5)
                 continue
-            data = exc.read().decode("utf-8", errors="replace")
+            with exc:
+                data = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"HTTP error {exc.code}: {data}") from exc
         except Exception as exc:
             time.sleep(0.5)
@@ -190,6 +203,15 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
         model_path,
     ] + extra_args
 
+    # Always set --ctx-size so we don't allocate too much memory.
+    # ctx_size = ctxsizePerSession * parallel (per-session context, server total context).
+    ctxsize_per_session = int(
+        os.environ.get("LLAMA_CTXSIZE_PER_SESSION", "2048")
+    )
+    parallel = int(os.environ.get("LLAMA_PARALLEL", "1"))
+    ctx_size = ctxsize_per_session * parallel
+    cmd.extend(["--ctx-size", str(ctx_size), "--parallel", str(parallel)])
+
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.DEVNULL,
@@ -197,7 +219,8 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
         text=True,
     )
     try:
-        _wait_for_server(host, port)
+        bind_timeout = int(os.environ.get("LLAMA_SERVER_BIND_TIMEOUT", "180"))
+        _wait_for_server(host, port, timeout_s=bind_timeout)
         completion_timeout = ready_timeout_s
         if completion_timeout is None:
             completion_timeout = int(os.environ.get("LLAMA_READY_TIMEOUT", "120"))
@@ -342,14 +365,20 @@ def post_json(url, payload, timeout=120):
     request = urllib.request.Request(
         url,
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Connection": "close",
+        },
         method="POST",
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            data = resp.read().decode("utf-8")
+            resp.close()
+            return json.loads(data)
     except urllib.error.HTTPError as exc:
-        data = exc.read().decode("utf-8", errors="replace")
+        with exc:
+            data = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"HTTP error {exc.code}: {data}") from exc
 
 

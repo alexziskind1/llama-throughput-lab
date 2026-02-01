@@ -117,12 +117,14 @@ You can supply overrides in the launcher (space-separated `KEY=VALUE` pairs), or
 ### Server Behavior
 
 - `LLAMA_SERVER_ARGS`: extra args passed to `llama-server` (e.g. `--parallel 64`).
+- `LLAMA_CTXSIZE_PER_SESSION`: context size per session (tokens). If set, the server is started with `--ctx-size (ctxsizePerSession * parallel)` and `--parallel` so that each of the `parallel` slots gets this many tokens. Formula: `ctx_size = LLAMA_CTXSIZE_PER_SESSION * LLAMA_PARALLEL`.
 - `LLAMA_SERVER_HOST`: host for llama-server (default `127.0.0.1`).
 - `LLAMA_SERVER_PORT`: fixed port for single-server tests (optional).
 - `LLAMA_SERVER_INSTANCES`: number of servers for round-robin tests/sweeps.
 - `LLAMA_SERVER_BASE_PORT`: base port for multi-server runs (default `9000`).
 - `LLAMA_NGINX_PORT`: nginx listen port (default `8088`).
 - `LLAMA_READY_TIMEOUT`: seconds to wait for model readiness.
+- `LLAMA_SERVER_BIND_TIMEOUT`: seconds to wait for server to bind (default 180; increase if model load is slow).
 - `LLAMA_STARTUP_DELAY_S`: delay between starting servers (stagger startup).
 
 ### Request Controls
@@ -141,7 +143,7 @@ You can supply overrides in the launcher (space-separated `KEY=VALUE` pairs), or
 
 ### Sweep Controls
 
-- `LLAMA_MAX_TOKENS_LIST`: list of max tokens (round-robin sweep).
+- `LLAMA_MAX_TOKENS_LIST`: list of max tokens (round-robin sweep). Values ≤2048 use one server run (ctx=2048×parallel); values >2048 restart the server per value (ctx=n_predict×parallel).
 - `LLAMA_CONCURRENCY_LIST`: list of concurrencies (sweeps).
 - `LLAMA_INSTANCES_LIST`: list of instance counts (full sweep).
 - `LLAMA_PARALLEL_LIST`: list of `--parallel` values (full sweep).

@@ -1,7 +1,11 @@
 import os
 import time
 import unittest
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Suppress ResourceWarning for unclosed sockets in threaded urllib use (Python 3.12)
+warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed .*socket")
 
 from tests.llama_server_test_utils import (
     extract_token_count,

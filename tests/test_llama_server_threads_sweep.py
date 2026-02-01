@@ -3,7 +3,11 @@ import shlex
 import sys
 import time
 import unittest
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Suppress ResourceWarning for unclosed sockets in threaded urllib use (Python 3.12)
+warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed .*socket")
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
