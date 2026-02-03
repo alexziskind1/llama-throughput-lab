@@ -1,12 +1,15 @@
 # Llama.cpp Throughput Launcher
 
+https://www.youtube.com/watch?v=L9QZ97y9Exg
+
 This repo provides a dialog-based launcher to run llama.cpp throughput tests and sweeps.
 
 ## Quick Start
 
-1) Create a virtual environment (optional):
+1) Create and activate a virtual environment (optional):
 ```bash
 python3 -m venv .venv
+source .venv/bin/activate
 ```
 
 2) Install `dialog`:
@@ -193,3 +196,47 @@ results/full_sweep/full_sweep_<timestamp>.csv
 results/round_robin_sweep/round_robin_sweep_<timestamp>.csv
 ```
 Progress updates are printed to stderr during sweeps (completed/total and elapsed time).
+
+
+
+## Analyze the Data
+
+```bash
+python analyze-data.py --file results/full_sweep/full_sweep_20260131_150913.csv --field errors --order desc --count 10
+```
+
+Parameters:
+```plaintext
+--file    ... which file you want to process (required)
+--field   ... which field do you want to sort by (throughput_tps is the default if none is given)
+--order   ... 'asc' or 'desc' for ascending or descending (descending is the default if not given)
+--count   ... how many records to show (5 is the default)
+```
+
+Output will look something like this:
+
+```plaintext
+$ python analyze-data.py --file results/full_sweep/full_sweep_20260131_150913.csv
+instances | parallel | batch   | ubatch  | concurrency | throughput_tps | total_tokens | elapsed_s | errors
+-----------------------------------------------------------------------------------------------------------
+      2.0 |     64.0 | default | default |       128.0 |          359.4 |      16384.0 |     45.59 |    0.0
+      2.0 |     32.0 | default | default |        64.0 |          217.6 |       8192.0 |     37.64 |    0.0
+      2.0 |     64.0 | default | default |        64.0 |          217.5 |       8192.0 |     37.67 |    0.0
+      2.0 |     32.0 | default | default |       128.0 |           91.0 |       8448.0 |     92.82 |   62.0
+      2.0 |     64.0 | default | default |        32.0 |           75.0 |       4096.0 |     54.59 |    0.0
+
+
+$ python analyze-data.py --file results/full_sweep/full_sweep_20260131_150913.csv --field errors --order desc --count 10
+instances | parallel | batch   | ubatch  | concurrency | throughput_tps | total_tokens | elapsed_s | errors
+-----------------------------------------------------------------------------------------------------------
+      4.0 |     32.0 | default | default |       128.0 |            0.0 |          0.0 |     14.07 |  128.0
+      4.0 |     16.0 | default | default |       128.0 |           19.1 |       2560.0 |    134.05 |  108.0
+      2.0 |     16.0 | default | default |       128.0 |           46.7 |       4352.0 |     93.12 |   94.0
+      4.0 |     32.0 | default | default |        64.0 |            0.0 |          0.0 |     14.05 |   64.0
+      2.0 |     32.0 | default | default |       128.0 |           91.0 |       8448.0 |     92.82 |   62.0
+      4.0 |     16.0 | default | default |        64.0 |           16.2 |       2176.0 |    134.08 |   47.0
+      4.0 |     32.0 | default | default |        32.0 |            0.0 |          0.0 |     28.94 |   32.0
+      2.0 |     16.0 | default | default |        64.0 |           48.6 |       4352.0 |      89.6 |   30.0
+      2.0 |     16.0 | default | default |        32.0 |           73.9 |       4096.0 |     55.46 |    0.0
+      2.0 |     32.0 | default | default |        32.0 |           73.6 |       4096.0 |     55.64 |    0.0
+```
