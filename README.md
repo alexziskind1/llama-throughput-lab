@@ -1,5 +1,7 @@
 # Llama.cpp Throughput Launcher
 
+https://www.youtube.com/watch?v=L9QZ97y9Exg
+
 This repo provides a dialog-based launcher to run llama.cpp throughput tests and sweeps.
 
 ## Quick Start
