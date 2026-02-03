@@ -193,16 +193,6 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
     if extra_args is None:
         extra_args = os.environ.get("LLAMA_SERVER_ARGS", "").split()
 
-    cmd = [
-        server_bin,
-        "--host",
-        host,
-        "--port",
-        str(port),
-        "--model",
-        model_path,
-    ] + extra_args
-
     # Always set --ctx-size so we don't allocate too much memory.
     # ctx_size = ctxsize_per_session * parallel; use n_predict when CTXSIZE_PER_SESSION not set.
     ctxsize_per_session = int(
@@ -211,7 +201,20 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
     )
     parallel = int(os.environ.get("LLAMA_PARALLEL", "1"))
     ctx_size = ctxsize_per_session * parallel
-    cmd.extend(["--ctx-size", str(ctx_size), "--parallel", str(parallel)])
+
+    cmd = [
+        server_bin,
+        "--host",
+        host,
+        "--port",
+        str(port),
+        "--model",
+        model_path,
+        "--ctx-size",
+        str(ctx_size),
+        "--parallel",
+        str(parallel),
+    ] + extra_args
 
     process = subprocess.Popen(
         cmd,

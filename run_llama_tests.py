@@ -276,6 +276,7 @@ class AppState:
         self.rr_base_port = int(os.environ.get("LLAMA_SERVER_BASE_PORT", "9000"))
         self.rr_nginx_port = int(os.environ.get("LLAMA_NGINX_PORT", "8088"))
         self.rr_host = os.environ.get("LLAMA_SERVER_HOST", "127.0.0.1")
+        self.advanced_args = os.environ.get("LLAMA_SERVER_ARGS", "")
 
     @property
     def test_label(self):
@@ -321,7 +322,7 @@ def edit_env_overrides(state):
             "Example: LLAMA_CONCURRENCY=64 LLAMA_NUM_REQUESTS=64",
             "12",
             "70",
-            state.env_overrides,
+            state.env_overrides or "",
         ]
     )
     if code == 0:
@@ -414,6 +415,24 @@ def tokens_menu(state):
             break
 
 
+def edit_advanced_args(state):
+    selection, code = run_dialog(
+        [
+            "--title",
+            "Advanced Server Arguments",
+            "--inputbox",
+            "Enter llama-server arguments (e.g., --ctx-size 4096 -fa 1 --mmproj ./model.bin)\n"
+            "These will be passed directly to llama-server.\n"
+            "Note: --ctx-size and --parallel set here will override computed values.",
+            "12",
+            "70",
+            state.advanced_args or "",
+        ]
+    )
+    if code == 0:
+        state.advanced_args = selection.strip()
+
+
 def edit_server_bin(state):
     current = state.server_bin or ""
     selection, code = run_dialog(
@@ -441,6 +460,8 @@ def run_selected(state):
         overrides["LLAMA_MODEL_PATH"] = state.model_path
     if state.server_bin and "LLAMA_SERVER_BIN" not in overrides:
         overrides["LLAMA_SERVER_BIN"] = state.server_bin
+    if state.advanced_args and "LLAMA_SERVER_ARGS" not in overrides:
+        overrides["LLAMA_SERVER_ARGS"] = state.advanced_args
     if "LLAMA_N_PREDICT" not in overrides:
         overrides["LLAMA_N_PREDICT"] = str(state.n_predict)
     if state.test_key == "5" and "LLAMA_MAX_TOKENS_LIST" not in overrides:
@@ -478,6 +499,8 @@ def run_selected(state):
     print(f"  Parallel (server --parallel): {parallel_display}")
     if state.env_overrides:
         print(f"Env:   {state.env_overrides}")
+    if state.advanced_args:
+        print(f"Advanced Args: {state.advanced_args}")
     print("--------------------------------")
     print(f"CMD: {' '.join(cmd)}")
     print("")
@@ -499,6 +522,8 @@ def run_round_robin(state, action):
         overrides["LLAMA_MODEL_PATH"] = state.model_path
     if state.server_bin and "LLAMA_SERVER_BIN" not in overrides:
         overrides["LLAMA_SERVER_BIN"] = state.server_bin
+    if state.advanced_args and "LLAMA_SERVER_ARGS" not in overrides:
+        overrides["LLAMA_SERVER_ARGS"] = state.advanced_args
     overrides.setdefault("LLAMA_SERVER_INSTANCES", str(state.rr_instances))
     overrides.setdefault("LLAMA_PARALLEL", str(state.rr_parallel))
     overrides.setdefault("LLAMA_N_PREDICT", str(state.n_predict))
@@ -620,9 +645,9 @@ def round_robin_menu(state):
             "Configure and Run Round Robin",
             "--menu",
             "Set parameters and start/stop servers:",
-            "20",
+            "22",
             "70",
-            "9",
+            "10",
             "1",
             f"Instances: {state.rr_instances}",
             "2",
@@ -634,10 +659,12 @@ def round_robin_menu(state):
             "5",
             f"Host: {state.rr_host}",
             "6",
-            "Start round-robin servers",
+            f"Advanced Args: {state.advanced_args or '(None)'}",
             "7",
-            "Stop round-robin servers",
+            "Start round-robin servers",
             "8",
+            "Stop round-robin servers",
+            "9",
             "Back",
         ]
 
@@ -655,10 +682,12 @@ def round_robin_menu(state):
         elif choice == "5":
             edit_rr_host(state)
         elif choice == "6":
-            run_round_robin(state, "start")
+            edit_advanced_args(state)
         elif choice == "7":
-            run_round_robin(state, "stop")
+            run_round_robin(state, "start")
         elif choice == "8":
+            run_round_robin(state, "stop")
+        elif choice == "9":
             break
 
 
@@ -669,6 +698,7 @@ def main_menu():
         model_display = Path(state.model_path).name if state.model_path else "(None)"
         server_display = Path(state.server_bin).name if state.server_bin else "(Auto)"
         env_display = state.env_overrides if state.env_overrides else "(None)"
+        advanced_display = state.advanced_args if state.advanced_args else "(None)"
 
         tokens_display = f"{state.n_predict} / {state.max_tokens_list}"
         menu = [
@@ -679,7 +709,7 @@ def main_menu():
             "Main Menu",
             "--menu",
             "Select an option to configure or run:",
-            "20",
+            "22",
             "70",
             "10",
             "1",
@@ -693,10 +723,12 @@ def main_menu():
             "5",
             f"Env:    {env_display}",
             "6",
-            "RUN SELECTED TEST",
+            f"Advanced: {advanced_display}",
             "7",
-            "CONFIGURE AND RUN ROUND ROBIN",
+            "RUN SELECTED TEST",
             "8",
+            "CONFIGURE AND RUN ROUND ROBIN",
+            "9",
             "Exit",
         ]
 
@@ -715,10 +747,12 @@ def main_menu():
         elif choice == "5":
             edit_env_overrides(state)
         elif choice == "6":
-            run_selected(state)
+            edit_advanced_args(state)
         elif choice == "7":
-            round_robin_menu(state)
+            run_selected(state)
         elif choice == "8":
+            round_robin_menu(state)
+        elif choice == "9":
             break
 
     subprocess.run(["clear"])
