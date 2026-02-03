@@ -447,7 +447,9 @@ def run_selected(state):
         overrides["LLAMA_MAX_TOKENS_LIST"] = state.max_tokens_list
     if state.test_key in ("5", "6") and "LLAMA_CONCURRENCY_LIST" not in overrides:
         overrides["LLAMA_CONCURRENCY_LIST"] = state.concurrency_list
-    if state.test_key in ("1", "2", "3", "4", "5") and "LLAMA_PARALLEL" not in overrides:
+    # Only inject LLAMA_PARALLEL for round-robin test/sweep (3, 5). Single/concurrent (1, 2)
+    # and threads sweep (4) use test default 1 to avoid changing behavior and memory.
+    if state.test_key in ("3", "5") and "LLAMA_PARALLEL" not in overrides:
         overrides["LLAMA_PARALLEL"] = str(state.rr_parallel)
 
     env = os.environ.copy()
@@ -468,7 +470,12 @@ def run_selected(state):
     print(f"  Context per session (--ctx-size): {ctx_effective}{ctx_note}")
     print(f"  Sweep tokens:                  {overrides.get('LLAMA_MAX_TOKENS_LIST', state.max_tokens_list)}")
     print(f"  List of concurrent tests:     {overrides.get('LLAMA_CONCURRENCY_LIST', state.concurrency_list)}")
-    print(f"  Parallel (server --parallel): {overrides.get('LLAMA_PARALLEL', str(state.rr_parallel))}")
+    parallel_display = overrides.get("LLAMA_PARALLEL")
+    if parallel_display is None and state.test_key in ("1", "2", "4"):
+        parallel_display = "1 (test default)"
+    elif parallel_display is None:
+        parallel_display = str(state.rr_parallel)
+    print(f"  Parallel (server --parallel): {parallel_display}")
     if state.env_overrides:
         print(f"Env:   {state.env_overrides}")
     print("--------------------------------")
