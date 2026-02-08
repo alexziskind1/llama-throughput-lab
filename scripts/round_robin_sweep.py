@@ -1,6 +1,5 @@
 import csv
 import os
-import shlex
 import sys
 import time
 import warnings
@@ -14,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from tests.llama_server_test_utils import (
     extract_token_count,
+    parse_comma_args,
     post_json,
     start_llama_servers,
     start_nginx_round_robin,
@@ -150,7 +150,7 @@ def main():
     nginx_port = int(os.environ.get("LLAMA_NGINX_PORT", "8088"))
     ready_timeout_s = int(os.environ.get("LLAMA_READY_TIMEOUT", "180"))
     startup_delay_s = float(os.environ.get("LLAMA_STARTUP_DELAY_S", "0.0"))
-    base_args = shlex.split(os.environ.get("LLAMA_SERVER_ARGS", ""))
+    base_args = parse_comma_args(os.environ.get("LLAMA_SERVER_ARGS", ""))
 
     # n_predict ≤ threshold: one server run with ctx = 2048 * parallel. n_predict > threshold: restart per value.
     CTXSIZE_THRESHOLD = 2048

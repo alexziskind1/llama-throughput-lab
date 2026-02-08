@@ -22,6 +22,7 @@ BASE_PORT="${LLAMA_SERVER_BASE_PORT:-9000}"
 PARALLEL="${LLAMA_PARALLEL:-16}"
 # Per-session context size; total server ctx_size = CTXSIZE_PER_SESSION * PARALLEL. Use n_predict when unset.
 CTXSIZE_PER_SESSION="${LLAMA_CTXSIZE_PER_SESSION:-${LLAMA_N_PREDICT:-2048}}"
+LLAMA_SERVER_ARGS="${LLAMA_SERVER_ARGS:-}"
 
 NGINX_BIN="${NGINX_BIN:-nginx}"
 NGINX_PORT="${LLAMA_NGINX_PORT:-8088}"
@@ -51,12 +52,34 @@ start() {
 
   CTX_SIZE=$((CTXSIZE_PER_SESSION * PARALLEL))
 
+  # Parse comma-separated args into array (supports paths with spaces)
+  EXTRA_ARGS=()
+  if [ -n "$LLAMA_SERVER_ARGS" ]; then
+    IFS=',' read -ra EXTRA_ARGS <<< "$LLAMA_SERVER_ARGS"
+    # Trim whitespace from each element
+    for i in "${!EXTRA_ARGS[@]}"; do
+      EXTRA_ARGS[$i]="$(echo "${EXTRA_ARGS[$i]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    done
+  fi
+
+  # Check if user provided --ctx-size or --parallel in LLAMA_SERVER_ARGS
+  HAS_CTX_SIZE=false
+  HAS_PARALLEL=false
+  for arg in "${EXTRA_ARGS[@]}"; do
+    case "$arg" in
+      --ctx-size|--ctx-size=*) HAS_CTX_SIZE=true ;;
+      --parallel|--parallel=*) HAS_PARALLEL=true ;;
+    esac
+  done
+
   i=0
   while [ "$i" -lt "$INSTANCES" ]; do
     port=$((BASE_PORT + i))
     log="$RUN_DIR/llama-${port}.log"
-    # shellcheck disable=SC2086
-    "$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH" --parallel "$PARALLEL" --ctx-size "$CTX_SIZE" >"$log" 2>&1 &
+    BASE_CMD=("$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH")
+    [ "$HAS_PARALLEL" = false ] && BASE_CMD+=(--parallel "$PARALLEL")
+    [ "$HAS_CTX_SIZE" = false ] && BASE_CMD+=(--ctx-size "$CTX_SIZE")
+    "${BASE_CMD[@]}" "${EXTRA_ARGS[@]}" >"$log" 2>&1 &
     echo $! > "$RUN_DIR/llama-${port}.pid"
     i=$((i + 1))
   done
