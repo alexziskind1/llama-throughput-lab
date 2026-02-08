@@ -87,8 +87,8 @@ start() {
           candidate="${arg#*=}"
           ;;
         --parallel)
-          if [ $((i + 1)) -lt ${#EXTRA_ARGS[@]} ]; then
-            candidate="${EXTRA_ARGS[$((i + 1))]}"
+          if (( i + 1 < ${#EXTRA_ARGS[@]} )); then
+            candidate="${EXTRA_ARGS[i + 1]}"
           fi
           ;;
       esac
@@ -101,8 +101,7 @@ start() {
 
   CTX_SIZE=$((CTXSIZE_PER_SESSION * PARALLEL_EFFECTIVE))
 
-  i=0
-  while [ "$i" -lt "$INSTANCES" ]; do
+  for ((i = 0; i < INSTANCES; i++)); do
     port=$((BASE_PORT + i))
     log="$RUN_DIR/llama-${port}.log"
     BASE_CMD=("$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH")
@@ -110,32 +109,31 @@ start() {
     [ "$HAS_CTX_SIZE" = false ] && BASE_CMD+=(--ctx-size "$CTX_SIZE")
     "${BASE_CMD[@]}" "${EXTRA_ARGS[@]}" >"$log" 2>&1 &
     echo $! > "$RUN_DIR/llama-${port}.pid"
-    i=$((i + 1))
   done
 
   upstream_lines=""
-  i=0
-  while [ "$i" -lt "$INSTANCES" ]; do
+  for ((i = 0; i < INSTANCES; i++)); do
     port=$((BASE_PORT + i))
     upstream_lines="${upstream_lines}    server ${HOST}:${port};\n"
-    i=$((i + 1))
   done
 
   conf="$RUN_DIR/nginx.conf"
-  printf "worker_processes 1;\n" > "$conf"
-  printf "pid %s/nginx.pid;\n" "$RUN_DIR" >> "$conf"
-  printf "error_log %s/nginx-error.log;\n" "$RUN_DIR" >> "$conf"
-  printf "events { worker_connections 1024; }\n" >> "$conf"
-  printf "http {\n" >> "$conf"
-  printf "  access_log %s/nginx-access.log;\n" "$RUN_DIR" >> "$conf"
-  printf "  upstream llama_backend {\n%b  }\n" "$upstream_lines" >> "$conf"
-  printf "  server {\n" >> "$conf"
-  printf "    listen %s:%s;\n" "$HOST" "$NGINX_PORT" >> "$conf"
-  printf "    location / {\n" >> "$conf"
-  printf "      proxy_pass http://llama_backend;\n" >> "$conf"
-  printf "      proxy_http_version 1.1;\n" >> "$conf"
-  printf "      proxy_set_header Connection \"\";\n" >> "$conf"
-  printf "    }\n  }\n}\n" >> "$conf"
+  {
+    printf "worker_processes 1;\n"
+    printf "pid %s/nginx.pid;\n" "$RUN_DIR"
+    printf "error_log %s/nginx-error.log;\n" "$RUN_DIR"
+    printf "events { worker_connections 1024; }\n"
+    printf "http {\n"
+    printf "  access_log %s/nginx-access.log;\n" "$RUN_DIR"
+    printf "  upstream llama_backend {\n%b  }\n" "$upstream_lines"
+    printf "  server {\n"
+    printf "    listen %s:%s;\n" "$HOST" "$NGINX_PORT"
+    printf "    location / {\n"
+    printf "      proxy_pass http://llama_backend;\n"
+    printf "      proxy_http_version 1.1;\n"
+    printf "      proxy_set_header Connection \"\";\n"
+    printf "    }\n  }\n}\n"
+  } > "$conf"
 
   "$NGINX_BIN" -c "$conf" -p "$RUN_DIR" -g "daemon off;" >"$RUN_DIR/nginx.stdout" 2>&1 &
   echo $! > "$RUN_DIR/nginx.shell.pid"
@@ -168,8 +166,8 @@ stop() {
   done
 
   if command -v lsof >/dev/null 2>&1; then
-    i=0
-    while [ "$i" -lt "${INSTANCES:-0}" ]; do
+    inst="${INSTANCES:-0}"
+    for ((i = 0; i < inst; i++)); do
       port=$((BASE_PORT + i))
       pid=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)
       if [ -n "$pid" ]; then
@@ -180,7 +178,6 @@ stop() {
             ;;
         esac
       fi
-      i=$((i + 1))
     done
   fi
 
