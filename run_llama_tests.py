@@ -421,7 +421,8 @@ def edit_advanced_args(state):
             "--title",
             "Advanced Server Arguments",
             "--inputbox",
-            "Use comma-separated flags with = for values.\n"
+            "Use comma-separated flags with = for values (recommended).\n"
+            "Space-separated args are still accepted but cannot handle paths with spaces.\n"
             "Example: --ctx-size=4096,-fa=1,--mmproj=/path/to/model.bin\n"
             "Note: --ctx-size and --parallel set here will override computed values.",
             "12",

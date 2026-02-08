@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -18,7 +19,9 @@ DEFAULT_PORT = 8080
 def parse_comma_args(raw_args):
     if not raw_args:
         return []
-    return [arg.strip() for arg in raw_args.split(",") if arg.strip()]
+    if "," in raw_args:
+        return [arg.strip() for arg in raw_args.split(",") if arg.strip()]
+    return shlex.split(raw_args)
 
 
 def _has_flag(args, flag):
