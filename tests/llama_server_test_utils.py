@@ -32,6 +32,18 @@ def _has_flag(args, flag):
     return any(a == flag or a.startswith(flag + "=") for a in args)
 
 
+def _get_flag_value(args, flag):
+    """Return value for *flag* (e.g. ``--parallel``) from args, or None."""
+    for idx, arg in enumerate(args):
+        if arg == flag:
+            if idx + 1 < len(args):
+                return args[idx + 1]
+            return None
+        if arg.startswith(flag + "="):
+            return arg.split("=", 1)[1]
+    return None
+
+
 def _find_llama_cpp_dir():
     search_roots = [REPO_ROOT, *REPO_ROOT.parents]
     for base in search_roots:
@@ -217,6 +229,12 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
         or os.environ.get("LLAMA_N_PREDICT", "2048")
     )
     parallel = int(os.environ.get("LLAMA_PARALLEL", "1"))
+    parallel_override = _get_flag_value(extra_args, "--parallel")
+    if parallel_override:
+        try:
+            parallel = int(parallel_override)
+        except ValueError:
+            pass
     ctx_size = ctxsize_per_session * parallel
 
     cmd = [
