@@ -421,8 +421,8 @@ def edit_advanced_args(state):
             "--title",
             "Advanced Server Arguments",
             "--inputbox",
-            "Enter llama-server arguments (e.g., --ctx-size 4096 -fa 1 --mmproj ./model.bin)\n"
-            "These will be passed directly to llama-server.\n"
+            "Use comma-separated flags with = for values.\n"
+            "Example: --ctx-size=4096,-fa=1,--mmproj=/path/to/model.bin\n"
             "Note: --ctx-size and --parallel set here will override computed values.",
             "12",
             "70",

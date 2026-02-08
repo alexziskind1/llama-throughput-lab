@@ -119,7 +119,7 @@ You can supply overrides in the launcher (space-separated `KEY=VALUE` pairs), or
 
 ### Server Behavior
 
-- `LLAMA_SERVER_ARGS`: extra args passed to `llama-server` (e.g. `--parallel 64`).
+- `LLAMA_SERVER_ARGS`: extra args passed to `llama-server` using **comma-separated** format with `=` for values (e.g. `--ctx-size=4096,-fa=1,--mmproj=/path/to/model.bin`). Can be set via the **Advanced Args** menu in the launcher or via Env Overrides. Args are appended **after** the computed `--ctx-size` and `--parallel`, so values set here override the automatic defaults. See [Advanced Server Arguments](#advanced-server-arguments) for details.
 - `LLAMA_CTXSIZE_PER_SESSION`: context size per session (tokens). If set (e.g. via env overrides), the server is started with `--ctx-size (ctxsizePerSession * parallel)`. If not set, context is derived from `LLAMA_N_PREDICT`. Formula: `ctx_size = (LLAMA_CTXSIZE_PER_SESSION or LLAMA_N_PREDICT) * LLAMA_PARALLEL`. The dialog UI does not expose this; it always uses the single-test token value for context.
 - `LLAMA_SERVER_HOST`: host for llama-server (default `127.0.0.1`).
 - `LLAMA_SERVER_PORT`: fixed port for single-server tests (optional).
@@ -161,13 +161,59 @@ You can supply overrides in the launcher (space-separated `KEY=VALUE` pairs), or
 - `LLAMA_WARMUP_REQUESTS`: warmup requests before a sweep run.
 - `LLAMA_RESULTS_DIR`: base directory for sweep output files (default `results`).
 
+## Advanced Server Arguments
+
+The launcher exposes an **Advanced Args** field (main menu option 6, and in the
+round-robin submenu) that lets you pass arbitrary flags directly to `llama-server`
+via the `LLAMA_SERVER_ARGS` environment variable.
+
+### Format
+
+Use **comma-separated** tokens. Join flags and values with `=`:
+
+```
+--ctx-size=4096,-fa=1,--mmproj=/path with spaces/file.bin
+```
+
+Each comma-delimited token becomes one argument. Paths with spaces are fully
+supported because commas (not spaces) delimit arguments.
+
+### Override behavior
+
+`LLAMA_SERVER_ARGS` is appended **after** the computed `--ctx-size` and `--parallel`
+flags. Because `llama-server` uses last-value-wins for duplicate flags, any
+`--ctx-size` or `--parallel` you set in Advanced Args will override the
+automatically computed values.
+
+For example, if you enter `--ctx-size=8192` in Advanced Args while the computed
+context would be 2048, the server will use 8192.
+
+### Precedence: Env Overrides vs Advanced Args
+
+If you set `LLAMA_SERVER_ARGS` in the **Env Overrides** field (e.g.
+`LLAMA_SERVER_ARGS="--ctx-size=8192"`), it takes priority over the Advanced Args
+field. The Advanced Args value is only used when `LLAMA_SERVER_ARGS` is not
+already present in Env Overrides.
+
+### Sweep interaction
+
+The full sweep (`scripts/full_sweep.py`) filters `--parallel`, `--batch-size`,
+and `--ubatch` from `LLAMA_SERVER_ARGS` and replaces them with sweep-specific
+values. Other arguments (e.g. `-fa 1`, `--mmproj`) are preserved.
+
+### Limitations
+
+- **Reserved flags in sweeps**: `--parallel`, `--batch-size`, and `--ubatch` are
+  auto-managed by sweep scripts and will be stripped/replaced. Do not rely on
+  setting these through Advanced Args when running sweeps.
+
 ## Examples
 
 ### Launcher
 
 Run the launcher and pass overrides in the dialog:
 ```
-LLAMA_CONCURRENCY=64 LLAMA_NUM_REQUESTS=64 LLAMA_SERVER_ARGS="--parallel 64"
+LLAMA_CONCURRENCY=64 LLAMA_NUM_REQUESTS=64 LLAMA_SERVER_ARGS="--parallel=64"
 ```
 
 Note: `LLAMA_SERVER_ARGS` is for fixed runs. For the full sweep, use

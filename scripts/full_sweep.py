@@ -1,6 +1,5 @@
 import csv
 import os
-import shlex
 import sys
 import time
 import warnings
@@ -14,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from tests.llama_server_test_utils import (
     extract_token_count,
+    parse_comma_args,
     post_json,
     start_llama_servers,
     start_nginx_round_robin,
@@ -47,10 +47,7 @@ def init_results_file(subdir, prefix):
     return results_dir / f"{prefix}_{timestamp}.csv"
 
 def build_server_args(base_args, parallel, batch_size, ubatch_size):
-    if base_args:
-        args = shlex.split(base_args)
-    else:
-        args = []
+    args = parse_comma_args(base_args)
 
     cleaned = []
     skip_next = False

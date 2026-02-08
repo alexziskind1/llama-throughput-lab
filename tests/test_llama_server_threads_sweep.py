@@ -1,5 +1,4 @@
 import os
-import shlex
 import sys
 import time
 import unittest
@@ -14,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from tests.llama_server_test_utils import (
     extract_token_count,
     extract_tokens_per_second,
+    parse_comma_args,
     post_json,
     start_llama_server,
 )
@@ -59,7 +59,7 @@ class LlamaServerThreadsSweepTest(unittest.TestCase):
         threads_http = os.environ.get("LLAMA_THREADS_HTTP")
         if threads_http is not None:
             threads_http_list = _parse_optional_int_list(threads_http)
-        base_args = shlex.split(os.environ.get("LLAMA_SERVER_ARGS", ""))
+        base_args = parse_comma_args(os.environ.get("LLAMA_SERVER_ARGS", ""))
 
         best = {"throughput": 0.0, "threads": None, "threads_http": None}
 

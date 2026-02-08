@@ -52,12 +52,21 @@ start() {
 
   CTX_SIZE=$((CTXSIZE_PER_SESSION * PARALLEL))
 
+  # Parse comma-separated args into array (supports paths with spaces)
+  EXTRA_ARGS=()
+  if [ -n "$LLAMA_SERVER_ARGS" ]; then
+    IFS=',' read -ra EXTRA_ARGS <<< "$LLAMA_SERVER_ARGS"
+    # Trim whitespace from each element
+    for i in "${!EXTRA_ARGS[@]}"; do
+      EXTRA_ARGS[$i]="$(echo "${EXTRA_ARGS[$i]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    done
+  fi
+
   i=0
   while [ "$i" -lt "$INSTANCES" ]; do
     port=$((BASE_PORT + i))
     log="$RUN_DIR/llama-${port}.log"
-    # shellcheck disable=SC2086
-    "$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH" --parallel "$PARALLEL" --ctx-size "$CTX_SIZE" $LLAMA_SERVER_ARGS >"$log" 2>&1 &
+    "$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH" --parallel "$PARALLEL" --ctx-size "$CTX_SIZE" "${EXTRA_ARGS[@]}" >"$log" 2>&1 &
     echo $! > "$RUN_DIR/llama-${port}.pid"
     i=$((i + 1))
   done

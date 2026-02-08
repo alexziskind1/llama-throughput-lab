@@ -15,6 +15,12 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 
 
+def parse_comma_args(raw_args):
+    if not raw_args:
+        return []
+    return [arg.strip() for arg in raw_args.split(",") if arg.strip()]
+
+
 def _find_llama_cpp_dir():
     search_roots = [REPO_ROOT, *REPO_ROOT.parents]
     for base in search_roots:
@@ -191,7 +197,7 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
     else:
         port = int(port)
     if extra_args is None:
-        extra_args = os.environ.get("LLAMA_SERVER_ARGS", "").split()
+        extra_args = parse_comma_args(os.environ.get("LLAMA_SERVER_ARGS", ""))
 
     # Always set --ctx-size so we don't allocate too much memory.
     # ctx_size = ctxsize_per_session * parallel; use n_predict when CTXSIZE_PER_SESSION not set.
