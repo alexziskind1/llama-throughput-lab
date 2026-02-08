@@ -52,14 +52,21 @@ start() {
 
   CTX_SIZE=$((CTXSIZE_PER_SESSION * PARALLEL))
 
-  # Parse comma-separated args into array (supports paths with spaces)
+  # Parse args: comma-separated is recommended; space-separated is legacy.
   EXTRA_ARGS=()
   if [ -n "$LLAMA_SERVER_ARGS" ]; then
-    IFS=',' read -ra EXTRA_ARGS <<< "$LLAMA_SERVER_ARGS"
-    # Trim whitespace from each element
-    for i in "${!EXTRA_ARGS[@]}"; do
-      EXTRA_ARGS[$i]="$(echo "${EXTRA_ARGS[$i]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-    done
+    if [[ "$LLAMA_SERVER_ARGS" == *","* ]]; then
+      IFS=',' read -ra EXTRA_ARGS <<< "$LLAMA_SERVER_ARGS"
+      # Trim whitespace from each element
+      for i in "${!EXTRA_ARGS[@]}"; do
+        EXTRA_ARGS[$i]="$(echo "${EXTRA_ARGS[$i]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      done
+    else
+      set -f
+      # shellcheck disable=SC2206
+      EXTRA_ARGS=($LLAMA_SERVER_ARGS)
+      set +f
+    fi
   fi
 
   # Check if user provided --ctx-size or --parallel in LLAMA_SERVER_ARGS

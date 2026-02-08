@@ -119,7 +119,7 @@ You can supply overrides in the launcher (space-separated `KEY=VALUE` pairs), or
 
 ### Server Behavior
 
-- `LLAMA_SERVER_ARGS`: extra args passed to `llama-server` using **comma-separated** format with `=` for values (e.g. `--ctx-size=4096,-fa=1,--mmproj=/path/to/model.bin`). Can be set via the **Advanced Args** menu in the launcher or via Env Overrides. If `--ctx-size` or `--parallel` appear in these args, the corresponding computed value is **skipped entirely** (not duplicated). See [Advanced Server Arguments](#advanced-server-arguments) for details.
+- `LLAMA_SERVER_ARGS`: extra args passed to `llama-server` using **comma-separated** format with `=` for values (e.g. `--ctx-size=4096,-fa=1,--mmproj=/path/to/model.bin`). Space-separated args are still accepted for backward compatibility but **won't handle paths with spaces**. Can be set via the **Advanced Args** menu in the launcher or via Env Overrides. If `--ctx-size` or `--parallel` appear in these args, the corresponding computed value is **skipped entirely** (not duplicated). See [Advanced Server Arguments](#advanced-server-arguments) for details.
 - `LLAMA_CTXSIZE_PER_SESSION`: context size per session (tokens). If set (e.g. via env overrides), the server is started with `--ctx-size (ctxsizePerSession * parallel)`. If not set, context is derived from `LLAMA_N_PREDICT`. Formula: `ctx_size = (LLAMA_CTXSIZE_PER_SESSION or LLAMA_N_PREDICT) * LLAMA_PARALLEL`. The dialog UI does not expose this; it always uses the single-test token value for context.
 - `LLAMA_SERVER_HOST`: host for llama-server (default `127.0.0.1`).
 - `LLAMA_SERVER_PORT`: fixed port for single-server tests (optional).
@@ -169,7 +169,7 @@ via the `LLAMA_SERVER_ARGS` environment variable.
 
 ### Format
 
-Use **comma-separated** tokens. Join flags and values with `=`:
+Use **comma-separated** tokens (recommended). Join flags and values with `=`:
 
 ```
 --ctx-size=4096,-fa=1,--mmproj=/path with spaces/file.bin
@@ -177,6 +177,9 @@ Use **comma-separated** tokens. Join flags and values with `=`:
 
 Each comma-delimited token becomes one argument. Paths with spaces are fully
 supported because commas (not spaces) delimit arguments.
+
+If you omit commas, the legacy space-separated format is still accepted, but
+paths with spaces will break.
 
 ### Override behavior
 
