@@ -50,8 +50,6 @@ start() {
     exit 1
   fi
 
-  CTX_SIZE=$((CTXSIZE_PER_SESSION * PARALLEL))
-
   # Parse args: comma-separated is recommended; space-separated is legacy.
   EXTRA_ARGS=()
   if [ -n "$LLAMA_SERVER_ARGS" ]; then
@@ -78,6 +76,30 @@ start() {
       --parallel|--parallel=*) HAS_PARALLEL=true ;;
     esac
   done
+
+  PARALLEL_EFFECTIVE="$PARALLEL"
+  if [ "$HAS_PARALLEL" = true ]; then
+    for i in "${!EXTRA_ARGS[@]}"; do
+      arg="${EXTRA_ARGS[$i]}"
+      candidate=""
+      case "$arg" in
+        --parallel=*)
+          candidate="${arg#*=}"
+          ;;
+        --parallel)
+          if [ $((i + 1)) -lt ${#EXTRA_ARGS[@]} ]; then
+            candidate="${EXTRA_ARGS[$((i + 1))]}"
+          fi
+          ;;
+      esac
+      if [[ "$candidate" =~ ^[0-9]+$ ]]; then
+        PARALLEL_EFFECTIVE="$candidate"
+        break
+      fi
+    done
+  fi
+
+  CTX_SIZE=$((CTXSIZE_PER_SESSION * PARALLEL_EFFECTIVE))
 
   i=0
   while [ "$i" -lt "$INSTANCES" ]; do
