@@ -119,7 +119,7 @@ You can supply overrides in the launcher (space-separated `KEY=VALUE` pairs), or
 
 ### Server Behavior
 
-- `LLAMA_SERVER_ARGS`: extra args passed to `llama-server` using **comma-separated** format with `=` for values (e.g. `--ctx-size=4096,-fa=1,--mmproj=/path/to/model.bin`). Can be set via the **Advanced Args** menu in the launcher or via Env Overrides. Args are appended **after** the computed `--ctx-size` and `--parallel`, so values set here override the automatic defaults. See [Advanced Server Arguments](#advanced-server-arguments) for details.
+- `LLAMA_SERVER_ARGS`: extra args passed to `llama-server` using **comma-separated** format with `=` for values (e.g. `--ctx-size=4096,-fa=1,--mmproj=/path/to/model.bin`). Can be set via the **Advanced Args** menu in the launcher or via Env Overrides. If `--ctx-size` or `--parallel` appear in these args, the corresponding computed value is **skipped entirely** (not duplicated). See [Advanced Server Arguments](#advanced-server-arguments) for details.
 - `LLAMA_CTXSIZE_PER_SESSION`: context size per session (tokens). If set (e.g. via env overrides), the server is started with `--ctx-size (ctxsizePerSession * parallel)`. If not set, context is derived from `LLAMA_N_PREDICT`. Formula: `ctx_size = (LLAMA_CTXSIZE_PER_SESSION or LLAMA_N_PREDICT) * LLAMA_PARALLEL`. The dialog UI does not expose this; it always uses the single-test token value for context.
 - `LLAMA_SERVER_HOST`: host for llama-server (default `127.0.0.1`).
 - `LLAMA_SERVER_PORT`: fixed port for single-server tests (optional).
@@ -180,13 +180,15 @@ supported because commas (not spaces) delimit arguments.
 
 ### Override behavior
 
-`LLAMA_SERVER_ARGS` is appended **after** the computed `--ctx-size` and `--parallel`
-flags. Because `llama-server` uses last-value-wins for duplicate flags, any
-`--ctx-size` or `--parallel` you set in Advanced Args will override the
-automatically computed values.
+If `--ctx-size` or `--parallel` are present in `LLAMA_SERVER_ARGS`, the launcher
+**skips injecting** the corresponding computed value entirely — it does not pass
+the flag twice and rely on last-value-wins. This matters because `llama-server`
+divides the total `--ctx-size` budget among `--parallel` slots. If you set
+`--ctx-size=262144,--parallel=16`, each slot gets 16 384 tokens of context.
 
-For example, if you enter `--ctx-size=8192` in Advanced Args while the computed
-context would be 2048, the server will use 8192.
+For example, if you enter `--ctx-size=262144` in Advanced Args, the launcher will
+not inject its own computed `--ctx-size` at all, so the value you set is the one
+the server sees.
 
 ### Precedence: Env Overrides vs Advanced Args
 

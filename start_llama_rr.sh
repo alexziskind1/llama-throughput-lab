@@ -62,11 +62,24 @@ start() {
     done
   fi
 
+  # Check if user provided --ctx-size or --parallel in LLAMA_SERVER_ARGS
+  HAS_CTX_SIZE=false
+  HAS_PARALLEL=false
+  for arg in "${EXTRA_ARGS[@]}"; do
+    case "$arg" in
+      --ctx-size|--ctx-size=*) HAS_CTX_SIZE=true ;;
+      --parallel|--parallel=*) HAS_PARALLEL=true ;;
+    esac
+  done
+
   i=0
   while [ "$i" -lt "$INSTANCES" ]; do
     port=$((BASE_PORT + i))
     log="$RUN_DIR/llama-${port}.log"
-    "$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH" --parallel "$PARALLEL" --ctx-size "$CTX_SIZE" "${EXTRA_ARGS[@]}" >"$log" 2>&1 &
+    BASE_CMD=("$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH")
+    [ "$HAS_PARALLEL" = false ] && BASE_CMD+=(--parallel "$PARALLEL")
+    [ "$HAS_CTX_SIZE" = false ] && BASE_CMD+=(--ctx-size "$CTX_SIZE")
+    "${BASE_CMD[@]}" "${EXTRA_ARGS[@]}" >"$log" 2>&1 &
     echo $! > "$RUN_DIR/llama-${port}.pid"
     i=$((i + 1))
   done

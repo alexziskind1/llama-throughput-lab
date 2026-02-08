@@ -21,6 +21,14 @@ def parse_comma_args(raw_args):
     return [arg.strip() for arg in raw_args.split(",") if arg.strip()]
 
 
+def _has_flag(args, flag):
+    """Check if *flag* (e.g. ``--ctx-size``) is present in *args*.
+
+    Matches both ``--flag value`` and ``--flag=value`` forms.
+    """
+    return any(a == flag or a.startswith(flag + "=") for a in args)
+
+
 def _find_llama_cpp_dir():
     search_roots = [REPO_ROOT, *REPO_ROOT.parents]
     for base in search_roots:
@@ -216,11 +224,12 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
         str(port),
         "--model",
         model_path,
-        "--ctx-size",
-        str(ctx_size),
-        "--parallel",
-        str(parallel),
-    ] + extra_args
+    ]
+    if not _has_flag(extra_args, "--ctx-size"):
+        cmd += ["--ctx-size", str(ctx_size)]
+    if not _has_flag(extra_args, "--parallel"):
+        cmd += ["--parallel", str(parallel)]
+    cmd += extra_args
 
     process = subprocess.Popen(
         cmd,
