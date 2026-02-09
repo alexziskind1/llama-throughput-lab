@@ -20,7 +20,20 @@ def parse_comma_args(raw_args):
     if not raw_args:
         return []
     if "," in raw_args:
-        return [arg.strip() for arg in raw_args.split(",") if arg.strip()]
+        # Split by comma, then convert --flag=value to --flag value
+        result = []
+        for arg in raw_args.split(","):
+            arg = arg.strip()
+            if not arg:
+                continue
+            if "=" in arg:
+                # Convert --flag=value or -flag=value to separate args
+                flag, value = arg.split("=", 1)
+                result.append(flag)
+                result.append(value)
+            else:
+                result.append(arg)
+        return result
     return shlex.split(raw_args)
 
 
@@ -252,6 +265,7 @@ def start_llama_server(port=None, host=None, extra_args=None, ready_timeout_s=No
         cmd += ["--parallel", str(parallel)]
     cmd += extra_args
 
+    print(f"[llama-server] {' '.join(shlex.quote(str(arg)) for arg in cmd)}")
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.DEVNULL,

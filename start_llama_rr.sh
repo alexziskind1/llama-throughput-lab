@@ -51,13 +51,24 @@ start() {
   fi
 
   # Parse args: comma-separated is recommended; space-separated is legacy.
+  # Convert --flag=value to --flag value format
   EXTRA_ARGS=()
   if [ -n "$LLAMA_SERVER_ARGS" ]; then
     if [[ "$LLAMA_SERVER_ARGS" == *","* ]]; then
-      IFS=',' read -ra EXTRA_ARGS <<< "$LLAMA_SERVER_ARGS"
-      # Trim whitespace from each element
-      for i in "${!EXTRA_ARGS[@]}"; do
-        EXTRA_ARGS[$i]="$(echo "${EXTRA_ARGS[$i]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      IFS=',' read -ra raw_args <<< "$LLAMA_SERVER_ARGS"
+      for arg in "${raw_args[@]}"; do
+        arg="$(echo "$arg" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        if [ -z "$arg" ]; then
+          continue
+        fi
+        # Convert --flag=value to separate args
+        if [[ "$arg" == *"="* ]]; then
+          flag="${arg%%=*}"
+          value="${arg#*=}"
+          EXTRA_ARGS+=("$flag" "$value")
+        else
+          EXTRA_ARGS+=("$arg")
+        fi
       done
     else
       set -f
@@ -107,6 +118,7 @@ start() {
     BASE_CMD=("$LLAMA_SERVER_BIN" --host "$HOST" --port "$port" --model "$MODEL_PATH")
     [ "$HAS_PARALLEL" = false ] && BASE_CMD+=(--parallel "$PARALLEL")
     [ "$HAS_CTX_SIZE" = false ] && BASE_CMD+=(--ctx-size "$CTX_SIZE")
+    echo "[llama-server] ${BASE_CMD[*]} ${EXTRA_ARGS[*]}"
     "${BASE_CMD[@]}" "${EXTRA_ARGS[@]}" >"$log" 2>&1 &
     echo $! > "$RUN_DIR/llama-${port}.pid"
   done
